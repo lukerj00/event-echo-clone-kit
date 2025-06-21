@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Event Management Platform</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --secondary-color: #2C3E50;
+            --accent-color: #3498DB;
+            --background-dark: #1A2634;
+            --card-bg: #233446;
+            --text-primary: #ECF0F1;
+            --text-secondary: #B2BEC3;
+        }
+        body {
+            background-color: var(--background-dark);
+            color: var(--text-primary);
+        }
+        .navbar {
+            background-color: var(--card-bg) !important;
+            border-bottom: 1px solid var(--secondary-color);
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-color: var(--secondary-color);
+        }
+        .nav-link.active {
+            color: var(--primary-color) !important;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .text-primary {
+            color: var(--primary-color) !important;
+        }
+        .footer {
+            background-color: var(--card-bg);
+            border-color: var(--secondary-color);
+        }
+        .navbar {
+            border-bottom: 1px solid var(--bs-border-color);
+            padding: 1rem 0;
+        }
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-link {
+            font-weight: 500;
+        }
+        .nav-link.active {
+            color: var(--bs-primary) !important;
+        }
+        .footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            background: var(--bs-dark);
+            border-top: 1px solid var(--bs-border-color);
+        }
+        .main-content {
+            min-height: calc(100vh - 280px);
+            padding: 2rem 0;
+        }
+        .card {
+            border: 1px solid var(--bs-border-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .chat-messages {
+            background: var(--bs-dark);
+            border-radius: 0.25rem;
+            padding: 1rem;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .chat-message {
+            margin-bottom: 1rem;
+        }
+        .chat-message .message-content {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            max-width: 75%;
+        }
+        .chat-message.user {
+            text-align: right;
+        }
+        .chat-message.user .message-content {
+            background: var(--bs-primary);
+            color: white;
+        }
+        .chat-message.assistant .message-content {
+            background: var(--bs-secondary);
+            color: white;
+        }
+        .badge {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i data-feather="shield" class="text-primary"></i>
+                SecureEvent Pro
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+                            <i data-feather="home" class="feather-sm"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
+                            <i data-feather="trending-up" class="feather-sm"></i>
+                            Modeling
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                            <i data-feather="file-text" class="feather-sm"></i>
+                            Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
+                            <i data-feather="search" class="feather-sm"></i>
+                            Compare Events
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
+                            <i data-feather="message-square" class="feather-sm"></i>
+                            AI Assistant
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
+                            <i data-feather="check-square" class="feather-sm"></i>
+                            Decision Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'insights' }}" href="{{ url_for('insights') }}">
+                            <i data-feather="bar-chart-2" class="feather-sm"></i>
+                            Insights
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3">SecureEvent Pro</h5>
+                    <p class="text-muted mb-0">
+                        Advanced risk assessment and security management platform for public event safety professionals.
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">
+                        © 2024 SecureEvent Pro. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace({ class: 'feather-sm' });
+        });
+    </script>
+</body>
+</html>

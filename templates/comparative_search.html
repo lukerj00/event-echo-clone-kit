@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">Find Similar Past Events</h4>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('comparative_search') }}" id="searchForm">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Venue Location</label>
+                    <input type="text" name="location" class="form-control" value="{{ request.args.get('location', '') }}" placeholder="Enter venue location">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Event Type</label>
+                    <select name="event_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for type in event_types %}
+                        <option value="{{ type }}" {% if request.args.get('event_type') == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Expected Attendance</label>
+                    <select name="attendance_range" class="form-select">
+                        <option value="">Any Size</option>
+                        <option value="small" {% if request.args.get('attendance_range') == 'small' %}selected{% endif %}>Small (< 1,000)</option>
+                        <option value="medium" {% if request.args.get('attendance_range') == 'medium' %}selected{% endif %}>Medium (1,000 - 5,000)</option>
+                        <option value="large" {% if request.args.get('attendance_range') == 'large' %}selected{% endif %}>Large (5,000 - 15,000)</option>
+                        <option value="xlarge" {% if request.args.get('attendance_range') == 'xlarge' %}selected{% endif %}>Very Large (> 15,000)</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Venue Type</label>
+                    <select name="venue_type" class="form-select">
+                        <option value="">All Venues</option>
+                        {% for type in venue_types %}
+                        <option value="{{ type }}" {% if request.args.get('venue_type') == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Risk Level</label>
+                    <select name="risk_level" class="form-select">
+                        <option value="">Any Risk Level</option>
+                        <option value="Low" {% if request.args.get('risk_level') == 'Low' %}selected{% endif %}>Low Risk</option>
+                        <option value="Medium" {% if request.args.get('risk_level') == 'Medium' %}selected{% endif %}>Medium Risk</option>
+                        <option value="High" {% if request.args.get('risk_level') == 'High' %}selected{% endif %}>High Risk</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date Range</label>
+                    <select name="date_range" class="form-select">
+                        <option value="">Any Time</option>
+                        <option value="recent" {% if request.args.get('date_range') == 'recent' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="past_3m" {% if request.args.get('date_range') == 'past_3m' %}selected{% endif %}>Past 3 Months</option>
+                        <option value="past_6m" {% if request.args.get('date_range') == 'past_6m' %}selected{% endif %}>Past 6 Months</option>
+                        <option value="past_year" {% if request.args.get('date_range') == 'past_year' %}selected{% endif %}>Past Year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="button" class="btn btn-secondary" onclick="clearSearch()">Clear Search</button>
+                <button type="submit" class="btn btn-primary">Find Similar Events</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if similar_events %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Comparison Results</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Criteria</th>
+                        {% for event in similar_events %}
+                        <th>{{ event.title }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>Date</th>
+                        {% for event in similar_events %}
+                        <td>{{ event.date.strftime('%Y-%m-%d') }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Location</th>
+                        {% for event in similar_events %}
+                        <td>{{ event.location }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Risk Level</th>
+                        {% for event in similar_events %}
+                        <td>
+                            <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">
+                                {{ event.risk_level }}
+                            </span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Attendance</th>
+                        {% for event in similar_events %}
+                        <td>{{ event.attendance }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Venue Type</th>
+                        {% for event in similar_events %}
+                        <td>{{ event.venue_type }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Security Staff</th>
+                        {% for event in similar_events %}
+                        <td>
+                            Total: {{ event.security_staff_count }}<br>
+                            {% if event.security_staff_roles %}
+                            Roles:<br>
+                            <ul class="list-unstyled mb-0">
+                                {% for role, count in event.security_staff_roles.items() %}
+                                <li><small>{{ role }}: {{ count }}</small></li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Incidents</th>
+                        {% for event in similar_events %}
+                        <td>
+                            Count: {{ event.incidents_reported }}<br>
+                            {% if event.incident_summary %}
+                            <small>{{ event.incident_summary[:150] }}...</small>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Security Measures</th>
+                        {% for event in similar_events %}
+                        <td>
+                            {% if event.security_measures %}
+                            <small>{{ event.security_measures[:150] }}...</small>
+                            {% else %}
+                            Not recorded
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Lessons Learned</th>
+                        {% for event in similar_events %}
+                        <td>
+                            {% if event.lessons_learned %}
+                            <small>{{ event.lessons_learned[:150] }}...</small>
+                            {% else %}
+                            Not recorded
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4">
+            <div class="d-flex justify-content-end gap-2">
+                {% for event in similar_events %}
+                <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-secondary btn-sm">
+                    View {{ event.title }} Details
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function clearSearch() {
+    document.getElementById('searchForm').reset();
+    window.location.href = '{{ url_for("comparative_search") }}';
+}
+</script>
+{% endblock %}

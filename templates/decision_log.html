@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Document Viewer Panel -->
+        <div class="col-md-4 border-end" style="height: calc(100vh - 56px); overflow-y: auto;">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Documents</h5>
+                    <a href="{{ url_for('export_decisions') }}" class="btn btn-sm btn-outline-primary">
+                        <i data-feather="download" class="feather-sm me-1"></i>Export Log
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="documentsList">
+                        {% for decision in decisions %}
+                            {% if decision.attachments %}
+                                {% for attachment in decision.attachments %}
+                                <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" 
+                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i data-feather="file" class="feather-sm me-2"></i>
+                                        {{ attachment.filename }}
+                                    </div>
+                                    <small class="text-muted">{{ attachment.uploaded_at[:16] }}</small>
+                                </a>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Log Panel -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Details Log</h4>
+                </div>
+                <div class="card-body">
+                    <form id="decisionForm" method="POST" enctype="multipart/form-data" class="mb-4">
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="4"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <!-- File selection button -->
+                            <label class="btn btn-outline-secondary mb-0">
+                                <span>Upload File</span>
+                                <input type="file" name="attachments" class="d-none" multiple>
+                            </label>
+                            <!-- Upload button (hidden initially) -->
+                            <button type="button" class="btn btn-primary d-none" id="uploadBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="btn-text">Upload Selected Files</span>
+                            </button>
+                            <!-- Update button -->
+                            <button type="submit" class="btn btn-primary" id="updateBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="btn-text">Update</span>
+                            </button>
+                        </div>
+                        <div id="uploadStatus" class="mt-2"></div>
+                    </form>
+
+                    <div id="decisionsContainer">
+                        {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
+                        <div class="border-bottom py-3">
+                            <div class="mb-2">
+                                <strong>update {{ decisions|length - loop.index0 }}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
+                                <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
+                                {% if decision.attachments %}
+                                <div>
+                                    <strong>Document:</strong>
+                                    {% for attachment in decision.attachments %}
+                                    <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
+                                        {{ attachment.filename }}
+                                    </a>
+                                    {% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div><strong>Document:</strong> N/A</div>
+                                {% endif %}
+                            </div>
+                            <p class="mb-0">{{ decision.description }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('decisionForm');
+    const fileInput = form.querySelector('input[type="file"]');
+    const fileLabel = form.querySelector('label.btn-outline-secondary span');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const decisionsContainer = document.getElementById('decisionsContainer');
+    const documentsList = document.getElementById('documentsList');
+    let hasSelectedFiles = false;
+
+    // Update file label and show upload button when files are selected
+    fileInput.addEventListener('change', function() {
+        const numFiles = this.files.length;
+        if (numFiles > 0) {
+            fileLabel.textContent = `${numFiles} file${numFiles === 1 ? '' : 's'} selected`;
+            uploadBtn.classList.remove('d-none');
+            uploadStatus.innerHTML = `<div class="alert alert-info">Ready to upload ${numFiles} file${numFiles === 1 ? '' : 's'}</div>`;
+            hasSelectedFiles = true;
+        } else {
+            fileLabel.textContent = 'Upload File';
+            uploadBtn.classList.add('d-none');
+            uploadStatus.innerHTML = '';
+            hasSelectedFiles = false;
+        }
+    });
+
+    async function refreshDecisionsList() {
+        try {
+            const response = await fetch(window.location.href);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+
+            // Update decisions container
+            const newDecisionsContainer = doc.getElementById('decisionsContainer');
+            if (newDecisionsContainer) {
+                decisionsContainer.innerHTML = newDecisionsContainer.innerHTML;
+            }
+
+            // Update documents list
+            const newDocumentsList = doc.getElementById('documentsList');
+            if (newDocumentsList) {
+                documentsList.innerHTML = newDocumentsList.innerHTML;
+            }
+
+            // Reinitialize Feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        } catch (error) {
+            console.error('Error refreshing decisions list:', error);
+            uploadStatus.innerHTML = '<div class="alert alert-warning">Updates submitted but could not refresh the list. Please reload the page.</div>';
+        }
+    }
+
+    // Handle file upload button click
+    uploadBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+
+        // Show loading state
+        const spinner = this.querySelector('.spinner-border');
+        const btnText = this.querySelector('.btn-text');
+
+        spinner.classList.remove('d-none');
+        this.disabled = true;
+        uploadStatus.innerHTML = '<div class="alert alert-info">Uploading files...</div>';
+
+        try {
+            const formData = new FormData(form);
+            formData.set('description', 'File upload'); // Set a default description for file uploads
+
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Server response:', result);
+
+            if (result.status === 'success') {
+                uploadStatus.innerHTML = '<div class="alert alert-success">Files uploaded successfully!</div>';
+                await refreshDecisionsList();
+                form.reset();
+                fileLabel.textContent = 'Upload File';
+                uploadBtn.classList.add('d-none');
+                hasSelectedFiles = false;
+
+                setTimeout(() => {
+                    uploadStatus.innerHTML = '';
+                }, 3000);
+            } else {
+                throw new Error(result.message || 'Unknown error occurred');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Error uploading files. Please try again.</div>';
+        } finally {
+            spinner.classList.add('d-none');
+            this.disabled = false;
+            btnText.textContent = 'Upload Selected Files';
+        }
+    });
+
+    // Handle form submit for updates
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Validate description for updates
+        const description = this.querySelector('textarea[name="description"]').value.trim();
+        if (!description) {
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Please enter a description</div>';
+            return;
+        }
+
+        // Show loading state
+        const spinner = updateBtn.querySelector('.spinner-border');
+        const btnText = updateBtn.querySelector('.btn-text');
+
+        spinner.classList.remove('d-none');
+        updateBtn.disabled = true;
+        uploadStatus.innerHTML = '<div class="alert alert-info">Saving update...</div>';
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                uploadStatus.innerHTML = '<div class="alert alert-success">Update submitted successfully!</div>';
+                await refreshDecisionsList();
+                this.reset();
+                fileLabel.textContent = 'Upload File';
+                uploadBtn.classList.add('d-none');
+                hasSelectedFiles = false;
+
+                setTimeout(() => {
+                    uploadStatus.innerHTML = '';
+                }, 3000);
+            } else {
+                throw new Error(result.message || 'Unknown error occurred');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Error saving update. Please try again.</div>';
+        } finally {
+            spinner.classList.add('d-none');
+            updateBtn.disabled = false;
+            btnText.textContent = 'Update';
+        }
+    });
+});
+</script>
+{% endblock %}
